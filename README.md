@@ -41,3 +41,15 @@ El endpoint `/api/status` permite comprobar que la API se encuentra en ejecució
 ### Función de Spring Boot
 
 Spring Boot simplifica el desarrollo de aplicaciones backend mediante configuración automática, dependencias predefinidas y un servidor embebido Tomcat, permitiendo crear APIs REST de manera rápida y organizada.
+
+## 6. Endopoint del controlador de estudiantes
+
+![students](assets/student-controller.png)
+
+Se mostro el resultado del endoint.
+
+## 7. Endpoint del controlador de estudiantes en la ruta de `count`
+
+![count](assets/count.png)
+
+Se mostro el resultado del endoint.
