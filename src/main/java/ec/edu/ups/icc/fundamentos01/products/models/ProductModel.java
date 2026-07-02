@@ -1,6 +1,5 @@
 package ec.edu.ups.icc.fundamentos01.products.models;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 public class ProductModel {
@@ -11,7 +10,7 @@ public class ProductModel {
 
     private String description;
 
-    private BigDecimal price;
+    private Double price;
 
     private Integer stock;
 
@@ -48,11 +47,11 @@ public class ProductModel {
         this.description = description;
     }
 
-    public BigDecimal getPrice() {
+    public Double getPrice() {
         return price;
     }
 
-     public void setPrice(BigDecimal price) {
+     public void setPrice(Double price) {
         this.price = price;
     }
 

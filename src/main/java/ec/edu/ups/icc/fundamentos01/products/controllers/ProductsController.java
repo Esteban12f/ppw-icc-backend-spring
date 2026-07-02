@@ -5,6 +5,8 @@ import ec.edu.ups.icc.fundamentos01.products.dtos.PartialUpdateProductDto;
 import ec.edu.ups.icc.fundamentos01.products.dtos.ProductResponseDto;
 import ec.edu.ups.icc.fundamentos01.products.dtos.UpdateProductDto;
 import ec.edu.ups.icc.fundamentos01.products.services.ProductService;
+import jakarta.validation.Valid;
+
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -30,22 +32,42 @@ public class ProductsController {
     }
 
     @PostMapping
-    public ProductResponseDto create(@RequestBody CreateProductDto dto) {
+    public ProductResponseDto create(@Valid @RequestBody CreateProductDto dto) {
         return productService.create(dto);
     }
 
     @PutMapping("/{id}")
-    public ProductResponseDto update(@PathVariable Long id, @RequestBody UpdateProductDto dto) {
+    public ProductResponseDto update(@PathVariable Long id, @Valid @RequestBody UpdateProductDto dto) {
         return productService.update(id, dto);
     }
 
     @PatchMapping("/{id}")
-    public ProductResponseDto partialUpdate(@PathVariable Long id, @RequestBody PartialUpdateProductDto dto) {
+    public ProductResponseDto partialUpdate(@PathVariable Long id, @Valid @RequestBody PartialUpdateProductDto dto) {
         return productService.partialUpdate(id, dto);
     }
 
     @DeleteMapping("/{id}")
     public void delete(@PathVariable Long id) {
         productService.delete(id);
+    }
+
+         /*
+     * Endpoint para buscar productos por id de usuario.
+     *
+     * GET /products/user/{userId}
+     */
+    @GetMapping("/user/{userId}")
+    public List<ProductResponseDto> findByUserId(@PathVariable Long userId) {
+        return productService.findByUserId(userId);
+    }
+
+    /*
+     * Endpoint para buscar productos por id de categoría.
+     *
+     * GET /products/category/{categoryId}
+     */
+    @GetMapping("/category/{categoryId}")
+    public List<ProductResponseDto> findByCategoryId(@PathVariable Long categoryId) {
+        return productService.findByCategoryId(categoryId);
     }
 }

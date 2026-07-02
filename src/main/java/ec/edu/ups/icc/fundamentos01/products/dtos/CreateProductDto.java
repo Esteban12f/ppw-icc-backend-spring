@@ -1,41 +1,70 @@
 package ec.edu.ups.icc.fundamentos01.products.dtos;
 
-import java.math.BigDecimal;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 
+/*
+ * DTO utilizado para recibir los datos necesarios
+ * para crear un producto.
+ *
+ * Incluye userId y categoryId porque el producto
+ * debe relacionarse con un usuario y una categoría existentes.
+ */
 public class CreateProductDto {
 
+    @NotBlank(message = "El nombre es obligatorio")
+    @Size(min = 3, max = 150, message = "El nombre debe tener entre 3 y 150 caracteres")
     private String name;
 
-    private String description;
+    @NotNull(message = "El precio es obligatorio")
+    @DecimalMin(value = "0.0", inclusive = true, message = "El precio no puede ser negativo")
+    private Double price;
 
-    private BigDecimal price;
-
+    @NotNull(message = "El stock es obligatorio")
+    @Min(value = 0, message = "El stock no puede ser negativo")
     private Integer stock;
 
+    @NotNull(message = "El ID del usuario es obligatorio")
+    private Long userId;
+
+    @NotNull(message = "El ID de la categoría es obligatorio")
+    private Long categoryId;
+
+    @Size(max = 500, message = "La descripción no debe superar los 500 caracteres")
+    private String description;
+
     public CreateProductDto() {
+    }
+
+    public CreateProductDto(
+            @NotBlank(message = "El nombre es obligatorio") @Size(min = 3, max = 150, message = "El nombre debe tener entre 3 y 150 caracteres") String name,
+            @NotNull(message = "El precio es obligatorio") @DecimalMin(value = "0.0", inclusive = true, message = "El precio no puede ser negativo") Double price,
+            @NotNull(message = "El stock es obligatorio") @Min(value = 0, message = "El stock no puede ser negativo") Integer stock,
+            @NotNull(message = "El ID del usuario es obligatorio") Long userId,
+            @NotNull(message = "El ID de la categoría es obligatorio") Long categoryId) {
+        this.name = name;
+        this.price = price;
+        this.stock = stock;
+        this.userId = userId;
+        this.categoryId = categoryId;
     }
 
     public String getName() {
         return name;
     }
 
-     public void setName(String name) {
+    public void setName(String name) {
         this.name = name;
     }
 
-    public String getDescription() {
-        return description;
-    }
-
-     public void setDescription(String description) {
-        this.description = description;
-    }
-
-    public BigDecimal getPrice() {
+    public Double getPrice() {
         return price;
     }
 
-     public void setPrice(BigDecimal price) {
+    public void setPrice(Double price) {
         this.price = price;
     }
 
@@ -43,7 +72,32 @@ public class CreateProductDto {
         return stock;
     }
 
-     public void setStock(Integer stock) {
+    public void setStock(Integer stock) {
         this.stock = stock;
     }
+
+    public Long getUserId() {
+        return userId;
+    }
+
+    public void setUserId(Long userId) {
+        this.userId = userId;
+    }
+
+    public Long getCategoryId() {
+        return categoryId;
+    }
+
+    public void setCategoryId(Long categoryId) {
+        this.categoryId = categoryId;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
 }

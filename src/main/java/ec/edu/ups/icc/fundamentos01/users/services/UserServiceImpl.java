@@ -1,5 +1,7 @@
 package ec.edu.ups.icc.fundamentos01.users.services;
 
+import ec.edu.ups.icc.fundamentos01.core.exceptions.domain.ConflictException;
+import ec.edu.ups.icc.fundamentos01.core.exceptions.domain.NotFoundException;
 import ec.edu.ups.icc.fundamentos01.users.dtos.CreateUserDto;
 import ec.edu.ups.icc.fundamentos01.users.dtos.PartialUpdateUserDto;
 import ec.edu.ups.icc.fundamentos01.users.dtos.UpdateUserDto;
@@ -12,11 +14,6 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 
-/*
- * Implementación del servicio de usuarios.
- *
- * En esta clase se reemplaza la lista en memoria por UserRepository.
- */
 @Service
 public class UserServiceImpl implements UserService {
 
@@ -27,7 +24,7 @@ public class UserServiceImpl implements UserService {
     }
 
     /*
-     * Retorna todos los usuarios almacenados en PostgreSQL.
+     * Retorna todos los usuarios activos almacenados en PostgreSQL.
      */
     @Override
     public List<UserResponseDto> findAll() {
@@ -41,20 +38,25 @@ public class UserServiceImpl implements UserService {
     }
 
     /*
-     * Busca un usuario por id.
+     * Busca un usuario activo por id.
+     *
+     * Si no existe o está eliminado, lanza NotFoundException.
      */
     @Override
     public UserResponseDto findOne(Long id) {
 
-        return userRepository.findById(id)
-                .filter(entity -> !entity.isDeleted())
-                .map(UserMapper::toModelFromEntity)
-                .map(UserMapper::toResponse)
-                .orElseThrow(() -> new IllegalStateException("User not found"));
+        UserEntity entity = userRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("User not found"));
+
+        UserModel model = UserMapper.toModelFromEntity(entity);
+
+        return UserMapper.toResponse(model);
     }
 
     /*
      * Crea un nuevo usuario.
+     *
+     * Si el email ya existe, lanza ConflictException.
      */
     @Override
     public UserResponseDto create(CreateUserDto dto) {
@@ -71,14 +73,21 @@ public class UserServiceImpl implements UserService {
     }
 
     /*
-     * Actualiza completamente un usuario.
+     * Actualiza completamente un usuario activo.
+     *
+     * Si no existe o está eliminado, lanza NotFoundException.
      */
     @Override
     public UserResponseDto update(Long id, UpdateUserDto dto) {
 
         UserEntity entity = userRepository.findById(id)
-                .filter(user -> !user.isDeleted())
-                .orElseThrow(() -> new IllegalStateException("User not found"));
+                .orElseThrow(() -> new NotFoundException("User not found"));
+
+        userRepository.findByEmail(dto.getEmail())
+                .filter(existingUser -> !existingUser.getId().equals(id))
+                .ifPresent(existingUser -> {
+                    throw new ConflictException("Email already registered");
+                });
 
         entity.setName(dto.getName());
         entity.setEmail(dto.getEmail());
@@ -91,21 +100,36 @@ public class UserServiceImpl implements UserService {
     }
 
     /*
-     * Actualiza parcialmente un usuario.
+     * Actualiza parcialmente un usuario activo.
+     *
+     * Si no existe o está eliminado, lanza NotFoundException.
      */
     @Override
     public UserResponseDto partialUpdate(Long id, PartialUpdateUserDto dto) {
 
         UserEntity entity = userRepository.findById(id)
-                .filter(user -> !user.isDeleted())
-                .orElseThrow(() -> new IllegalStateException("User not found"));
+                .orElseThrow(() -> new NotFoundException("User not found"));
+
+        if (entity.isDeleted()) {
+            throw new NotFoundException("User not found");
+        }
+
+        if (dto.getEmail() != null) {
+            userRepository.findByEmail(dto.getEmail())
+                    .filter(existingUser -> !existingUser.getId().equals(id))
+                    .ifPresent(existingUser -> {
+                        throw new ConflictException("Email already registered");
+                    });
+
+            entity.setEmail(dto.getEmail());
+        }
 
         if (dto.getName() != null) {
             entity.setName(dto.getName());
         }
 
-        if (dto.getEmail() != null) {
-            entity.setEmail(dto.getEmail());
+        if (dto.getPassword() != null) {
+            entity.setPasswordHash("HASH_" + dto.getPassword());
         }
 
         UserEntity savedEntity = userRepository.save(entity);
@@ -117,13 +141,14 @@ public class UserServiceImpl implements UserService {
 
     /*
      * Elimina lógicamente un usuario por id.
+     *
+     * Si no existe o ya está eliminado, lanza NotFoundException.
      */
     @Override
     public void delete(Long id) {
 
         UserEntity entity = userRepository.findById(id)
-                .filter(user -> !user.isDeleted())
-                .orElseThrow(() -> new IllegalStateException("User not found"));
+                .orElseThrow(() -> new NotFoundException("User not found"));
 
         entity.setDeleted(true);
 

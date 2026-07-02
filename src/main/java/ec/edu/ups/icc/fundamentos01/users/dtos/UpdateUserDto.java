@@ -1,5 +1,9 @@
 package ec.edu.ups.icc.fundamentos01.users.dtos;
 
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
+
 /*
  * DTO utilizado para recibir los datos necesarios
  * para actualizar completamente un usuario existente.
@@ -9,7 +13,13 @@ package ec.edu.ups.icc.fundamentos01.users.dtos;
  */
 public class UpdateUserDto {
 
+    @NotBlank(message = "El nombre es obligatorio")
+    @Size(min = 3, max = 150, message = "El nombre debe tener entre 3 y 150 caracteres")
     private String name;
+
+    @NotBlank(message = "El email es obligatorio")
+    @Email(message = "Debe ingresar un email válido")
+    @Size(max = 150, message = "El email no debe superar los 150 caracteres")
     private String email;
 
     public UpdateUserDto() {
