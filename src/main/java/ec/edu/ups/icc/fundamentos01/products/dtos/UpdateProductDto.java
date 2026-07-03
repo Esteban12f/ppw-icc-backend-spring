@@ -1,5 +1,7 @@
 package ec.edu.ups.icc.fundamentos01.products.dtos;
 
+import java.util.Set;
+
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -34,19 +36,29 @@ public class UpdateProductDto {
     @Size(max = 500, message = "La descripción no debe superar los 500 caracteres")
     private String description;
 
+    private Set<Long> categoryIds;
+
     public UpdateProductDto() {
     }
+
+    
 
     public UpdateProductDto(
             @NotBlank(message = "El nombre es obligatorio") @Size(min = 3, max = 150, message = "El nombre debe tener entre 3 y 150 caracteres") String name,
             @NotNull(message = "El precio es obligatorio") @DecimalMin(value = "0.0", inclusive = true, message = "El precio no puede ser negativo") Double price,
             @NotNull(message = "El stock es obligatorio") @Min(value = 0, message = "El stock no puede ser negativo") Integer stock,
-            @NotNull(message = "El ID de la categoría es obligatorio") Long categoryId) {
+            @NotNull(message = "El ID de la categoría es obligatorio") Long categoryId,
+            @Size(max = 500, message = "La descripción no debe superar los 500 caracteres") String description,
+            Set<Long> categoryIds) {
         this.name = name;
         this.price = price;
         this.stock = stock;
         this.categoryId = categoryId;
+        this.description = description;
+        this.categoryIds = categoryIds;
     }
+
+
 
     public String getName() {
         return name;
@@ -88,5 +100,14 @@ public class UpdateProductDto {
         this.description = description;
     }
 
+    public Set<Long> getCategoryIds() {
+        return categoryIds;
+    }
+
+    public void setCategoryIds(Set<Long> categoryIds) {
+        this.categoryIds = categoryIds;
+    }
+
+    
     
 }

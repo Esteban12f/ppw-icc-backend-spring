@@ -1,6 +1,6 @@
 package ec.edu.ups.icc.fundamentos01.products.entities;
-
-import java.math.BigDecimal;
+import java.util.HashSet;
+import java.util.Set;
 
 import ec.edu.ups.icc.fundamentos01.categories.entity.CategoryEntity;
 import ec.edu.ups.icc.fundamentos01.core.entities.BaseEntity;
@@ -9,6 +9,8 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.ManyToMany;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
@@ -45,29 +47,27 @@ public class ProductEntity extends BaseEntity {
     private UserEntity owner;
 
     /*
-     * Relación muchos a uno con CategoryEntity.
+     * Relación muchos a muchos entre productos y categorías.
      *
-     * Muchos productos pueden pertenecer a una categoría.
-     * La columna category_id se crea en la tabla products.
+     * Un producto puede pertenecer a varias categorías.
+     * Una categoría puede tener varios productos.
      */
-    @ManyToOne(optional = false, fetch = FetchType.LAZY)
-    @JoinColumn(name = "category_id", nullable = false)
-    private CategoryEntity category;
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(name = "product_categories", joinColumns = @JoinColumn(name = "product_id"), inverseJoinColumns = @JoinColumn(name = "category_id"))
+    private Set<CategoryEntity> categories = new HashSet<>();
 
     public ProductEntity() {
     }
 
     public ProductEntity(String name, Double price, Integer stock, String description, UserEntity owner,
-            CategoryEntity category) {
+            Set<CategoryEntity> categories) {
         this.name = name;
         this.price = price;
         this.stock = stock;
         this.description = description;
         this.owner = owner;
-        this.category = category;
+        this.categories = categories;
     }
-
-
 
     public String getName() {
         return name;
@@ -101,14 +101,6 @@ public class ProductEntity extends BaseEntity {
         this.owner = owner;
     }
 
-    public CategoryEntity getCategory() {
-        return category;
-    }
-
-    public void setCategory(CategoryEntity category) {
-        this.category = category;
-    }
-
     public String getDescription() {
         return description;
     }
@@ -117,6 +109,12 @@ public class ProductEntity extends BaseEntity {
         this.description = description;
     }
 
-    
-    
+    public Set<CategoryEntity> getCategories() {
+        return categories;
+    }
+
+    public void setCategories(Set<CategoryEntity> categories) {
+        this.categories = categories;
+    }
+
 }

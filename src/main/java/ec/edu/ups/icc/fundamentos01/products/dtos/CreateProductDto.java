@@ -1,8 +1,11 @@
 package ec.edu.ups.icc.fundamentos01.products.dtos;
 
+import java.util.Set;
+
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
@@ -30,11 +33,11 @@ public class CreateProductDto {
     @NotNull(message = "El ID del usuario es obligatorio")
     private Long userId;
 
-    @NotNull(message = "El ID de la categoría es obligatorio")
-    private Long categoryId;
-
     @Size(max = 500, message = "La descripción no debe superar los 500 caracteres")
     private String description;
+
+    @NotEmpty(message = "Debe seleccionar al menos una categoría")
+    private Set<Long> categoryIds;
 
     public CreateProductDto() {
     }
@@ -44,12 +47,15 @@ public class CreateProductDto {
             @NotNull(message = "El precio es obligatorio") @DecimalMin(value = "0.0", inclusive = true, message = "El precio no puede ser negativo") Double price,
             @NotNull(message = "El stock es obligatorio") @Min(value = 0, message = "El stock no puede ser negativo") Integer stock,
             @NotNull(message = "El ID del usuario es obligatorio") Long userId,
-            @NotNull(message = "El ID de la categoría es obligatorio") Long categoryId) {
+            @NotNull(message = "El ID de la categoría es obligatorio") Long categoryId,
+            @Size(max = 500, message = "La descripción no debe superar los 500 caracteres") String description,
+            Set<Long> categoryIds) {
         this.name = name;
         this.price = price;
         this.stock = stock;
         this.userId = userId;
-        this.categoryId = categoryId;
+        this.description = description;
+        this.categoryIds = categoryIds;
     }
 
     public String getName() {
@@ -84,20 +90,20 @@ public class CreateProductDto {
         this.userId = userId;
     }
 
-    public Long getCategoryId() {
-        return categoryId;
-    }
-
-    public void setCategoryId(Long categoryId) {
-        this.categoryId = categoryId;
-    }
-
     public String getDescription() {
         return description;
     }
 
     public void setDescription(String description) {
         this.description = description;
+    }
+
+    public Set<Long> getCategoryIds() {
+        return categoryIds;
+    }
+
+    public void setCategoryIds(Set<Long> categoryIds) {
+        this.categoryIds = categoryIds;
     }
 
 }

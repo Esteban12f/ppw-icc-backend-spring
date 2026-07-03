@@ -1,5 +1,7 @@
 package ec.edu.ups.icc.fundamentos01.products.mappers;
 
+import java.util.Set;
+
 import ec.edu.ups.icc.fundamentos01.categories.dtos.CategoryResponseDto;
 import ec.edu.ups.icc.fundamentos01.products.dtos.CreateProductDto;
 import ec.edu.ups.icc.fundamentos01.products.dtos.ProductResponseDto;
@@ -87,14 +89,22 @@ public class ProductMapper {
             dto.setOwner(ownerDto);
         }
 
-        if (entity.getCategory() != null) {
-            CategoryResponseDto categoryDto = new CategoryResponseDto();
+        if (entity.getCategories() != null) {
+            Set<CategoryResponseDto> categoryDtos = entity.getCategories()
+                    .stream()
+                    .filter(category -> !category.isDeleted())
+                    .map(category -> {
+                        CategoryResponseDto categoryDto = new CategoryResponseDto();
 
-            categoryDto.setId(entity.getCategory().getId());
-            categoryDto.setName(entity.getCategory().getName());
-            categoryDto.setDescription(entity.getCategory().getDescription());
+                        categoryDto.setId(category.getId());
+                        categoryDto.setName(category.getName());
+                        categoryDto.setDescription(category.getDescription());
 
-            dto.setCategory(categoryDto);
+                        return categoryDto;
+                    })
+                    .collect(java.util.stream.Collectors.toSet());
+
+            dto.setCategories(categoryDtos);
         }
 
         return dto;
