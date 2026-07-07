@@ -8,7 +8,7 @@ spring:
         name: fundamentos01
 
     datasource:
-        url: jdbc:postgresql://localhost:5432/devdb
+        url: jdbc:postgresql://localhost:5433/devdb
         username: ups
         password: ups123
         driver-class-name: org.postgresql.Driver
