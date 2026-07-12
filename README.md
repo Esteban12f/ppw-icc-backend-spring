@@ -453,3 +453,861 @@ product_categories
 ```
 
 que almacena las asociaciones entre productos y categorías.
+
+
+---
+
+# Práctica 10: Paginación de Productos con Page, Slice y Pageable
+
+En esta práctica se implementó paginación en el módulo de productos utilizando Spring Data JPA.
+
+El objetivo fue evitar que el backend devuelva todos los registros en una sola respuesta cuando existen muchos productos almacenados en la base de datos.
+
+Se trabajó con:
+
+- `Page`
+- `Slice`
+- `Pageable`
+- `PageRequest`
+- `Sort`
+- validación de parámetros de paginación
+- endpoints paginados para productos
+- endpoints paginados para productos por categoría
+
+## Endpoints implementados
+
+| Método | Endpoint | Descripción |
+|--------|----------|-------------|
+| GET | `/api/products` | Lista todos los productos activos |
+| GET | `/api/products/page` | Lista productos usando `Page` |
+| GET | `/api/products/slice` | Lista productos usando `Slice` |
+| GET | `/api/categories/{id}/products/page` | Lista productos por categoría usando `Page` |
+| GET | `/api/categories/{id}/products/slice` | Lista productos por categoría usando `Slice` |
+
+---
+
+## Consulta sin paginación
+
+![Consulta sin paginación](assets/10-all.png)
+
+El endpoint:
+
+```http
+GET /api/products
+```
+
+devuelve todos los productos activos en una sola respuesta.
+
+Aunque el endpoint funciona correctamente, este enfoque no es recomendable cuando existen muchos registros, porque puede generar:
+
+- respuestas demasiado grandes
+- mayor consumo de memoria
+- más tráfico de red
+- mayor tiempo de respuesta
+- carga innecesaria para el cliente
+
+Por esta razón se implementó paginación.
+
+---
+
+## Consulta con Page
+
+![Consulta con Page](assets/10-page14.png)
+
+El endpoint:
+
+```http
+GET /api/products/page?page=0&size=5
+```
+
+devuelve una respuesta paginada con metadatos completos.
+
+La respuesta con `Page` incluye información como:
+
+```txt
+content
+totalElements
+totalPages
+number
+size
+first
+last
+```
+
+Ejemplo de endpoint con ordenamiento:
+
+```http
+GET /api/products/page?page=0&size=5&sortBy=price&direction=desc
+```
+
+`Page` es útil cuando el frontend necesita mostrar información como:
+
+```txt
+Página actual
+Total de registros
+Total de páginas
+Primera página
+Última página
+```
+
+---
+
+## Consulta con Slice
+
+![Consulta con Slice](assets/10-slice-14.png)
+
+El endpoint:
+
+```http
+GET /api/products/slice?page=0&size=5
+```
+
+devuelve una respuesta paginada más ligera.
+
+A diferencia de `Page`, `Slice` no devuelve:
+
+```txt
+totalElements
+totalPages
+```
+
+`Slice` es útil cuando solo se necesita saber si existe una página siguiente o anterior, por ejemplo en scroll infinito o navegación simple.
+
+---
+
+## Error por paginación inválida
+
+![Error de paginación](assets/10-pagination-error.png)
+
+Se probó el endpoint:
+
+```http
+GET /api/products/page?page=-1&size=0
+```
+
+La API respondió:
+
+```http
+400 Bad Request
+```
+
+Esto ocurre porque `PaginationDto` valida los parámetros recibidos desde query params.
+
+Validaciones aplicadas:
+
+```java
+@Min(value = 0)
+private int page;
+
+@Min(value = 1)
+@Max(value = 100)
+private int size;
+```
+
+---
+
+## Productos por categoría con Page
+
+![Productos por categoría Page](assets/10-category-page.png)
+
+Se implementó paginación para productos relacionados con una categoría.
+
+Endpoint probado:
+
+```http
+GET /api/categories/2/products/page?page=0&size=5
+```
+
+Este endpoint devuelve productos activos asociados a una categoría específica, aplicando paginación con `Page`.
+
+---
+
+## Productos por categoría con Slice
+
+![Productos por categoría Slice](assets/10-category-slice.png)
+
+También se implementó la versión con `Slice`.
+
+Endpoint probado:
+
+```http
+GET /api/categories/2/products/slice?page=0&size=5
+```
+
+Esta versión es más liviana porque no ejecuta una consulta `COUNT`.
+
+---
+
+## Diferencia entre Page y Slice
+
+| Aspecto | Page | Slice |
+|--------|------|-------|
+| Devuelve contenido | Sí | Sí |
+| Devuelve total de registros | Sí | No |
+| Devuelve total de páginas | Sí | No |
+| Ejecuta consulta COUNT | Sí | No |
+| Es más completo | Sí | No |
+| Es más liviano | No | Sí |
+| Uso recomendado | Tablas administrativas | Scroll infinito o navegación simple |
+
+---
+
+## ¿Por qué la paginación debe aplicarse en el repositorio?
+
+La paginación debe aplicarse directamente en el repositorio porque Spring Data JPA traduce `Pageable` a consultas SQL con:
+
+```sql
+LIMIT
+OFFSET
+ORDER BY
+```
+
+Esto permite traer desde PostgreSQL únicamente los registros necesarios.
+
+No es recomendable traer todos los datos y luego paginar en memoria, porque eso provocaría:
+
+- mayor consumo de RAM
+- consultas más lentas
+- respuestas innecesariamente grandes
+- peor rendimiento del backend
+- sobrecarga del cliente
+
+---
+
+# Práctica 11: Autenticación JWT, Roles y Protección de Endpoints
+
+En esta práctica se implementó autenticación con JWT utilizando Spring Security.
+
+El objetivo fue proteger los endpoints de la API para que solo usuarios autenticados puedan acceder a los recursos privados.
+
+Se implementó:
+
+- registro de usuarios
+- login de usuarios
+- generación de token JWT
+- validación de token JWT
+- roles con `ROLE_USER` y `ROLE_ADMIN`
+- cifrado de contraseñas con BCrypt
+- protección global de endpoints
+- endpoints públicos para autenticación
+
+---
+
+## Endpoints públicos
+
+| Método | Endpoint | Descripción |
+|--------|----------|-------------|
+| POST | `/api/auth/register` | Registro de usuario |
+| POST | `/api/auth/login` | Inicio de sesión |
+
+Estos endpoints no requieren token.
+
+---
+
+## Registro de usuario
+
+![Registro de usuario](assets/11-register.png)
+
+Se probó el endpoint:
+
+```http
+POST /api/auth/register
+```
+
+Body utilizado:
+
+```json
+{
+  "name": "Usuario A",
+  "email": "usera@ups.edu.ec",
+  "password": "Password123"
+}
+```
+
+La respuesta fue:
+
+```http
+201 Created
+```
+
+El backend creó el usuario, cifró la contraseña con BCrypt, asignó el rol `ROLE_USER` por defecto y devolvió un token JWT.
+
+---
+
+## Login de usuario
+
+![Login de usuario](assets/11-login.png)
+
+Se probó el endpoint:
+
+```http
+POST /api/auth/login
+```
+
+Body utilizado:
+
+```json
+{
+  "email": "usera@ups.edu.ec",
+  "password": "Password123"
+}
+```
+
+La respuesta fue:
+
+```http
+200 OK
+```
+
+El backend validó las credenciales y devolvió un token JWT.
+
+---
+
+## Estructura de respuesta de autenticación
+
+La respuesta de login y register contiene:
+
+```json
+{
+  "token": "eyJhbGciOiJIUzI1NiJ9...",
+  "type": "Bearer",
+  "userId": 14,
+  "name": "Usuario A",
+  "email": "usera@ups.edu.ec",
+  "roles": [
+    "ROLE_USER"
+  ]
+}
+```
+
+El token debe enviarse en las peticiones protegidas mediante el header:
+
+```http
+Authorization: Bearer TOKEN
+```
+
+---
+
+## Endpoint protegido sin token
+
+![Endpoint sin token](assets/11-protected-without-token.png)
+
+Se intentó acceder a un endpoint protegido sin enviar token:
+
+```http
+GET /api/products/page?page=0&size=5
+```
+
+La API respondió:
+
+```http
+401 Unauthorized
+```
+
+Esto demuestra que los endpoints privados requieren autenticación.
+
+---
+
+## Endpoint protegido con token
+
+![Endpoint con token](assets/11-protected-with-token.png)
+
+Se volvió a consumir el mismo endpoint, pero esta vez enviando el token JWT:
+
+```http
+GET /api/products/page?page=0&size=5
+Authorization: Bearer TOKEN
+```
+
+La API respondió:
+
+```http
+200 OK
+```
+
+Esto confirma que el token fue validado correctamente por el filtro JWT.
+
+---
+
+## Roles en base de datos
+
+![Roles](assets/11-roles-db.png)
+
+Se verificó que existan los roles base del sistema:
+
+```sql
+SELECT id, name, description
+FROM roles;
+```
+
+Roles esperados:
+
+```txt
+ROLE_USER
+ROLE_ADMIN
+```
+
+Estos roles se crean automáticamente al iniciar la aplicación mediante `SecurityDataInitializer`.
+
+---
+
+## Explicación
+
+JWT permite implementar autenticación sin sesiones en el servidor.
+
+El flujo aplicado fue:
+
+```txt
+Usuario inicia sesión
+  ↓
+Backend valida email y contraseña
+  ↓
+Backend genera JWT
+  ↓
+Cliente guarda el token
+  ↓
+Cliente envía el token en cada petición protegida
+  ↓
+JwtAuthenticationFilter valida el token
+  ↓
+Spring Security permite o rechaza el acceso
+```
+
+---
+
+# Práctica 12: Protección de Endpoints con Roles
+
+En esta práctica se implementó autorización por roles usando Spring Security y `@PreAuthorize`.
+
+La autenticación ya estaba implementada mediante JWT en la práctica anterior. En esta práctica se agregó una segunda capa de seguridad para controlar qué usuarios pueden acceder a ciertos endpoints según su rol.
+
+---
+
+## Endpoints protegidos por rol
+
+| Endpoint | Protección | Acceso |
+|----------|------------|--------|
+| `GET /api/products` | `@PreAuthorize("hasRole('ADMIN')")` | Solo ADMIN |
+| `GET /api/products/page` | Usuario autenticado | USER y ADMIN |
+| `GET /api/products/slice` | Usuario autenticado | USER y ADMIN |
+| `POST /api/products` | Usuario autenticado | USER y ADMIN |
+| `PUT /api/products/{id}` | Usuario autenticado + ownership | Owner o ADMIN |
+| `DELETE /api/products/{id}` | Usuario autenticado + ownership | Owner o ADMIN |
+
+---
+
+## Usuario sin rol ADMIN
+
+![USER Forbidden](assets/12-user-forbidden.png)
+
+Se probó el endpoint:
+
+```http
+GET /api/products
+```
+
+usando un usuario con `ROLE_USER`.
+
+La respuesta fue:
+
+```http
+403 Forbidden
+```
+
+Esto ocurre porque el método está protegido con:
+
+```java
+@PreAuthorize("hasRole('ADMIN')")
+```
+
+Un usuario autenticado pero sin el rol correcto no recibe `401`, sino `403`, porque sí está autenticado, pero no autorizado.
+
+---
+
+## Usuario ADMIN
+
+![ADMIN Products](assets/12-admin-products.png)
+
+Se probó el mismo endpoint con un usuario que tiene `ROLE_ADMIN`.
+
+La respuesta fue:
+
+```http
+200 OK
+```
+
+El usuario administrador pudo consultar el listado completo de productos.
+
+---
+
+## Endpoint paginado permitido para USER
+
+![USER Paginated OK](assets/12-user-paginated-ok.png)
+
+Se probó:
+
+```http
+GET /api/products/page?page=0&size=5
+```
+
+con un usuario `ROLE_USER`.
+
+La respuesta fue:
+
+```http
+200 OK
+```
+
+Este endpoint no tiene `@PreAuthorize("hasRole('ADMIN')")`, por lo que solo requiere un token válido.
+
+---
+
+## Acceso sin token
+
+![Without Token](assets/12-without-token.png)
+
+Cuando se intenta consumir un endpoint protegido sin token JWT, la API responde:
+
+```http
+401 Unauthorized
+```
+
+Esto demuestra que la autenticación JWT sigue activa.
+
+---
+
+## Usuarios y roles en PostgreSQL
+
+![User Roles DB](assets/12-user-roles-db.png)
+
+Se verificó en PostgreSQL que los usuarios tienen roles asignados mediante la tabla intermedia `user_roles`.
+
+Consulta utilizada:
+
+```sql
+SELECT 
+    u.id AS user_id,
+    u.name AS user_name,
+    u.email,
+    r.name AS role_name
+FROM users u
+JOIN user_roles ur ON ur.user_id = u.id
+JOIN roles r ON r.id = ur.role_id
+ORDER BY u.id;
+```
+
+---
+
+## Explicación
+
+`@PreAuthorize` permite proteger métodos específicos antes de que se ejecuten.
+
+Ejemplo:
+
+```java
+@PreAuthorize("hasRole('ADMIN')")
+```
+
+Esto significa que el método solo podrá ejecutarse si el usuario autenticado tiene la autoridad:
+
+```txt
+ROLE_ADMIN
+```
+
+La diferencia entre autenticación y autorización es:
+
+- Autenticación: verifica quién es el usuario mediante JWT.
+- Autorización: verifica qué permisos tiene el usuario mediante roles.
+
+Si el usuario no envía token, la API responde:
+
+```http
+401 Unauthorized
+```
+
+Si el usuario tiene token válido pero no tiene el rol requerido, la API responde:
+
+```http
+403 Forbidden
+```
+
+---
+
+# Práctica 13: Validación de Ownership
+
+En esta práctica se implementó validación de propiedad de recursos en el módulo de productos.
+
+El objetivo fue evitar que un usuario autenticado pueda modificar o eliminar productos pertenecientes a otro usuario.
+
+La práctica responde la pregunta:
+
+```txt
+¿Este recurso te pertenece?
+```
+
+---
+
+## Reglas aplicadas
+
+| Acción | ROLE_USER | ROLE_ADMIN |
+|--------|-----------|------------|
+| Crear producto | Sí | Sí |
+| Editar producto propio | Sí | Sí |
+| Editar producto ajeno | No | Sí |
+| Eliminar producto propio | Sí | Sí |
+| Eliminar producto ajeno | No | Sí |
+| Consultar productos paginados | Sí | Sí |
+| Consultar todos los productos | No | Sí |
+
+---
+
+## Creación de producto con usuario autenticado
+
+![Creación con owner autenticado](assets/13-create-authenticated-owner.png)
+
+Se creó un producto mediante:
+
+```http
+POST /api/products
+```
+
+Body utilizado:
+
+```json
+{
+  "name": "Laptop Usuario A",
+  "description": "Producto perteneciente al Usuario A",
+  "price": 900.0,
+  "stock": 10,
+  "categoryIds": [1, 2]
+}
+```
+
+Desde esta práctica ya no se envía `userId` en el body.
+
+El propietario se obtiene directamente desde el token JWT mediante:
+
+```java
+@AuthenticationPrincipal UserDetailsImpl currentUser
+```
+
+La respuesta evidencia que el objeto `owner` corresponde al usuario dueño del token utilizado.
+
+---
+
+## Actualización de producto propio
+
+![Actualización de producto propio](assets/13-update-own-product.png)
+
+El usuario propietario del producto pudo actualizarlo correctamente usando:
+
+```http
+PUT /api/products/{id}
+```
+
+La API respondió:
+
+```http
+200 OK
+```
+
+Esto ocurre porque el usuario autenticado coincide con el `owner` del producto.
+
+---
+
+## Bloqueo de actualización de producto ajeno
+
+![Actualización ajena bloqueada](assets/13-update-foreign-forbidden.png)
+
+Se utilizó el token de otro usuario para intentar modificar un producto que no le pertenece.
+
+Endpoint probado:
+
+```http
+PUT /api/products/{id}
+```
+
+La API respondió:
+
+```http
+403 Forbidden
+```
+
+Mensaje esperado:
+
+```txt
+No puedes modificar productos ajenos
+```
+
+Esto demuestra que la validación de ownership funciona correctamente.
+
+---
+
+## Bloqueo de eliminación de producto ajeno
+
+![Eliminación ajena bloqueada](assets/13-delete-foreign-forbidden.png)
+
+Un usuario distinto al propietario intentó eliminar el producto mediante:
+
+```http
+DELETE /api/products/{id}
+```
+
+La API respondió:
+
+```http
+403 Forbidden
+```
+
+Esto evita que un usuario elimine productos de otro usuario.
+
+---
+
+## ADMIN modificando producto ajeno
+
+![ADMIN modifica producto ajeno](assets/13-admin-update-foreign.png)
+
+Un usuario con `ROLE_ADMIN` pudo modificar correctamente un producto perteneciente a otro usuario.
+
+La respuesta fue:
+
+```http
+200 OK
+```
+
+Esto ocurre porque `ROLE_ADMIN` puede saltarse la restricción de ownership.
+
+---
+
+## ADMIN eliminando producto ajeno
+
+![ADMIN elimina producto ajeno](assets/13-admin-delete-foreign.png)
+
+Se probó la eliminación de un producto ajeno usando un usuario con `ROLE_ADMIN`.
+
+Endpoint:
+
+```http
+DELETE /api/products/{id}
+```
+
+Resultado:
+
+```http
+204 No Content
+```
+
+---
+
+## Productos y propietarios en PostgreSQL
+
+![Productos y propietarios](assets/13-products-owners-db.png)
+
+Se verificó directamente en PostgreSQL la relación entre productos y propietarios.
+
+Consulta utilizada:
+
+```sql
+SELECT
+    p.id AS product_id,
+    p.name AS product_name,
+    p.user_id AS owner_id,
+    u.name AS owner_name,
+    u.email AS owner_email,
+    p.deleted
+FROM products p
+INNER JOIN users u ON u.id = p.user_id
+ORDER BY p.id;
+```
+
+---
+
+## Implementación de Slice solo para el dueño
+
+![Slice solo del dueño](assets/13-slice-owner-only.png)
+
+Según la regla indicada, el endpoint:
+
+```http
+GET /api/products/slice?page=0&size=5
+```
+
+puede ser consumido por cualquier usuario autenticado, pero solo devuelve los productos del usuario dueño del token.
+
+Regla aplicada:
+
+| Método | Rol | Productos |
+|--------|-----|-----------|
+| `findAll` | ADMIN | Todos |
+| `page` | Todos los autenticados | Todos |
+| `slice` | Todos los autenticados | Solo del dueño |
+
+Esto se implementó obteniendo el usuario autenticado con:
+
+```java
+@AuthenticationPrincipal UserDetailsImpl currentUser
+```
+
+y filtrando por:
+
+```java
+p.owner.id = currentUser.getId()
+```
+
+---
+
+## ¿Qué es ownership?
+
+Ownership significa propiedad de un recurso.
+
+En esta API, cada producto pertenece a un usuario específico mediante la relación:
+
+```txt
+ProductEntity → owner → UserEntity
+```
+
+La validación de ownership comprueba que el usuario autenticado sea el propietario del producto antes de permitir operaciones de actualización o eliminación.
+
+---
+
+## ¿Por qué no es seguro recibir userId en CreateProductDto?
+
+No es seguro porque el cliente podría enviar el ID de otro usuario y crear productos a nombre de una persona diferente.
+
+Ejemplo inseguro:
+
+```json
+{
+  "name": "Laptop",
+  "price": 900,
+  "stock": 10,
+  "userId": 5,
+  "categoryIds": [1, 2]
+}
+```
+
+Por esa razón, el propietario se obtiene directamente desde el token JWT del usuario autenticado y no desde el body de la petición.
+
+---
+
+## Diferencia entre autorización por rol y autorización por ownership
+
+La autorización por rol comprueba permisos generales del usuario.
+
+Ejemplo:
+
+```java
+@PreAuthorize("hasRole('ADMIN')")
+```
+
+Esto permite restringir un endpoint completo solo a administradores.
+
+La autorización por ownership comprueba si un recurso específico pertenece al usuario autenticado.
+
+Ejemplo:
+
+```txt
+Usuario A puede modificar sus productos.
+Usuario B no puede modificar productos de Usuario A.
+ADMIN puede modificar cualquier producto.
+```
