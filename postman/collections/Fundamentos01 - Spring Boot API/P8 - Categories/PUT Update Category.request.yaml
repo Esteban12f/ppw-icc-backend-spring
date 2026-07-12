@@ -1,0 +1,14 @@
+$kind: http-request
+url: ""
+method: PUT
+headers:
+  Content-Type: application/json
+  Authorization: Bearer {{token}}
+body:
+  type: text
+  content: |-
+    {
+      "name": "Electronica",
+      "description": "Actualizada"
+    }
+order: 5000

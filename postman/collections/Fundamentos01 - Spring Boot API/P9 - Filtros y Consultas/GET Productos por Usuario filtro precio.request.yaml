@@ -1,0 +1,9 @@
+$kind: http-request
+url: ?minPrice=500&maxPrice=1500
+method: GET
+headers:
+  Authorization: Bearer {{token}}
+queryParams:
+  minPrice: "500"
+  maxPrice: "1500"
+order: 3000

@@ -1,0 +1,5 @@
+$kind: http-request
+name: Genero/Accion
+url: http://localhost:8080/api/producciones/genero/Acción
+method: GET
+order: 3992532770588863

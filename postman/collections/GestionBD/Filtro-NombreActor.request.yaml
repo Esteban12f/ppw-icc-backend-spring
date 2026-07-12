@@ -1,0 +1,7 @@
+$kind: http-request
+name: Filtro/NombreActor
+url: http://localhost:8080/api/producciones/reportes/actor?nombre=Tom Holland
+method: GET
+queryParams:
+  nombre: Tom Holland
+order: 4396383967859919

@@ -1,0 +1,14 @@
+$kind: http-request
+url: ""
+method: POST
+headers:
+  Content-Type: application/json
+  Authorization: Bearer {{token}}
+body:
+  type: text
+  content: |-
+    {
+      "name": "Electronicos",
+      "description": "Dispositivos electronicos"
+    }
+order: 3000

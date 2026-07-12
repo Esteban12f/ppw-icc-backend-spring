@@ -1,0 +1,17 @@
+$kind: http-request
+url: ""
+method: POST
+headers:
+  Content-Type: application/json
+  Authorization: Bearer {{token}}
+body:
+  type: text
+  content: |-
+    {
+      "name": "Laptop Gaming Pro",
+      "price": 999.0,
+      "stock": 1,
+      "userId": 1,
+      "categoryIds": [1]
+    }
+order: 9000

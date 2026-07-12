@@ -1,0 +1,14 @@
+$kind: http-request
+url: ""
+method: PUT
+headers:
+  Content-Type: application/json
+  Authorization: Bearer {{token}}
+body:
+  type: text
+  content: |-
+    {
+      "name": "Juan Actualizado",
+      "email": "juan.nuevo@ups.edu.ec"
+    }
+order: 4000

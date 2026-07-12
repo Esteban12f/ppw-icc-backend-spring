@@ -1,0 +1,8 @@
+$kind: http-request
+url: ?name=laptop
+method: GET
+headers:
+  Authorization: Bearer {{token}}
+queryParams:
+  name: laptop
+order: 2000

@@ -10,51 +10,86 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 /*
- * DTO utilizado para recibir los datos necesarios
- * para crear un producto.
+ * DTO utilizado para crear productos.
  *
- * Incluye userId y categoryId porque el producto
- * debe relacionarse con un usuario y una categoría existentes.
+ * Desde la práctica de ownership, este DTO ya no recibe userId.
+ *
+ * El propietario del producto se obtiene directamente
+ * desde el usuario autenticado mediante el token JWT.
+ *
+ * Esto evita que un usuario pueda crear productos
+ * a nombre de otra persona.
  */
 public class CreateProductDto {
 
+    /*
+     * Nombre del producto.
+     *
+     * Debe ser obligatorio y tener una longitud válida.
+     */
     @NotBlank(message = "El nombre es obligatorio")
-    @Size(min = 3, max = 150, message = "El nombre debe tener entre 3 y 150 caracteres")
+    @Size(min = 2, max = 150, message = "El nombre debe tener entre 2 y 150 caracteres")
     private String name;
 
+    /*
+     * Descripción opcional del producto.
+     */
+    @Size(max = 300, message = "La descripción no debe superar los 300 caracteres")
+    private String description;
+
+    /*
+     * Precio del producto.
+     *
+     * Debe existir y no puede ser negativo.
+     */
     @NotNull(message = "El precio es obligatorio")
-    @DecimalMin(value = "0.0", inclusive = true, message = "El precio no puede ser negativo")
+    @DecimalMin(
+            value = "0.0",
+            inclusive = true,
+            message = "El precio no puede ser negativo"
+    )
     private Double price;
 
+    /*
+     * Stock disponible.
+     *
+     * Debe existir y no puede ser negativo.
+     */
     @NotNull(message = "El stock es obligatorio")
     @Min(value = 0, message = "El stock no puede ser negativo")
     private Integer stock;
 
-    @NotNull(message = "El ID del usuario es obligatorio")
-    private Long userId;
-
-    @Size(max = 500, message = "La descripción no debe superar los 500 caracteres")
-    private String description;
-
+    /*
+     * IDs de las categorías asociadas al producto.
+     *
+     * Al existir una relación ManyToMany, un producto
+     * puede pertenecer a varias categorías.
+     */
     @NotEmpty(message = "Debe seleccionar al menos una categoría")
     private Set<Long> categoryIds;
 
+    /*
+     * Constructor vacío requerido por Jackson.
+     */
     public CreateProductDto() {
     }
 
+    /*
+     * Constructor completo.
+     *
+     * No contiene userId porque el owner se obtiene del JWT.
+     */
     public CreateProductDto(
-            @NotBlank(message = "El nombre es obligatorio") @Size(min = 3, max = 150, message = "El nombre debe tener entre 3 y 150 caracteres") String name,
-            @NotNull(message = "El precio es obligatorio") @DecimalMin(value = "0.0", inclusive = true, message = "El precio no puede ser negativo") Double price,
-            @NotNull(message = "El stock es obligatorio") @Min(value = 0, message = "El stock no puede ser negativo") Integer stock,
-            @NotNull(message = "El ID del usuario es obligatorio") Long userId,
-            @NotNull(message = "El ID de la categoría es obligatorio") Long categoryId,
-            @Size(max = 500, message = "La descripción no debe superar los 500 caracteres") String description,
-            Set<Long> categoryIds) {
+            String name,
+            String description,
+            Double price,
+            Integer stock,
+            Set<Long> categoryIds
+    ) {
         this.name = name;
+        this.description = description;
         this.price = price;
         this.stock = stock;
-        this.userId = userId;
-        this.description = description;
         this.categoryIds = categoryIds;
     }
 
@@ -64,6 +99,14 @@ public class CreateProductDto {
 
     public void setName(String name) {
         this.name = name;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
     }
 
     public Double getPrice() {
@@ -82,22 +125,6 @@ public class CreateProductDto {
         this.stock = stock;
     }
 
-    public Long getUserId() {
-        return userId;
-    }
-
-    public void setUserId(Long userId) {
-        this.userId = userId;
-    }
-
-    public String getDescription() {
-        return description;
-    }
-
-    public void setDescription(String description) {
-        this.description = description;
-    }
-
     public Set<Long> getCategoryIds() {
         return categoryIds;
     }
@@ -105,5 +132,4 @@ public class CreateProductDto {
     public void setCategoryIds(Set<Long> categoryIds) {
         this.categoryIds = categoryIds;
     }
-
 }

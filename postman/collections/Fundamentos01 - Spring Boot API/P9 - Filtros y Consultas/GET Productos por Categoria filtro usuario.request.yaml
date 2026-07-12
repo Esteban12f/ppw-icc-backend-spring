@@ -1,0 +1,8 @@
+$kind: http-request
+url: ?userId=1
+method: GET
+headers:
+  Authorization: Bearer {{token}}
+queryParams:
+  userId: "1"
+order: 7000

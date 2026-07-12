@@ -1,0 +1,14 @@
+$kind: http-request
+url: ""
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "name": "Aleks",
+      "email": "aleks@gmail.com",
+      "password": "Test1234"
+    }
+order: 1000

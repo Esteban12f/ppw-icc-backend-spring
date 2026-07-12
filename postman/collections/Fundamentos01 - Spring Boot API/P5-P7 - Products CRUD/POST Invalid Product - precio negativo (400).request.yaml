@@ -1,0 +1,14 @@
+$kind: http-request
+url: ""
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "name": "",
+      "price": -5,
+      "stock": -1
+    }
+order: 7000

@@ -1,0 +1,13 @@
+$kind: http-request
+url: ""
+method: PATCH
+headers:
+  Content-Type: application/json
+  Authorization: Bearer {{token}}
+body:
+  type: text
+  content: |-
+    {
+      "price": 999.99
+    }
+order: 5000

@@ -1,0 +1,16 @@
+$kind: http-request
+url: ""
+method: PUT
+headers:
+  Content-Type: application/json
+  Authorization: Bearer {{token}}
+body:
+  type: text
+  content: |-
+    {
+      "name": "Laptop Gaming Pro Max",
+      "price": 1500.0,
+      "stock": 3,
+      "categoryIds": [1]
+    }
+order: 4000

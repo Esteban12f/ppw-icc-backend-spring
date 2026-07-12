@@ -1,0 +1,8 @@
+$kind: http-request
+name: Reportes/Estrenadas
+url: http://localhost:8080/api/producciones/reportes/estrenadas?desde=2020-01-01&hasta=2024-12-31
+method: GET
+queryParams:
+  desde: 2020-01-01
+  hasta: 2024-12-31
+order: 4103885521349802

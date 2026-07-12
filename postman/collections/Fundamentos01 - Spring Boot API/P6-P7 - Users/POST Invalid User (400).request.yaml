@@ -1,0 +1,14 @@
+$kind: http-request
+url: ""
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "name": "",
+      "email": "correo-invalido",
+      "password": "123"
+    }
+order: 7000

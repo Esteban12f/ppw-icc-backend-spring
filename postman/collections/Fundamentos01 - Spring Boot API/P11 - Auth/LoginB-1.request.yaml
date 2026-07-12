@@ -1,0 +1,14 @@
+$kind: http-request
+name: LoginB
+url: ""
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "email": "aleks@gmail.com",
+      "password": "Test1234"
+    }
+order: 2000

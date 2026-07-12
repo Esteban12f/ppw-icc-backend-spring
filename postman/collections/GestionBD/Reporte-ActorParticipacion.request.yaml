@@ -1,0 +1,7 @@
+$kind: http-request
+name: Reporte/ActorParticipacion
+url: http://localhost:8080/api/producciones/reportes/actores-mayor-participacion?limite=10
+method: GET
+queryParams:
+  limite: "10"
+order: 4449521450917702

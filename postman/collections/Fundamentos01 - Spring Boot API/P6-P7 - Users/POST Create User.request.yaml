@@ -1,0 +1,15 @@
+$kind: http-request
+url: ""
+method: POST
+headers:
+  Content-Type: application/json
+  Authorization: Bearer {{token}}
+body:
+  type: text
+  content: |-
+    {
+      "name": "Juan Perez",
+      "email": "juan@ups.edu.ec",
+      "password": "12345678"
+    }
+order: 3000

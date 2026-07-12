@@ -2,6 +2,12 @@
 workspace:
   id: 1ed62597-996b-489b-85b9-74b437656631
 
+# Each entry here maps a local resource to one or more corresponding objects in Postman Cloud
+
+cloudResources:
+  collections:
+    ../postman/collections/Fundamentos01 - Spring Boot API: b25f22d6-fb43-4748-bad3-420c9c8fc04a
+
 # All resources in the `postman/` folder are automatically registered in Local View.
 # Point to additional files outside the `postman/` folder to register them individually. Example:
 #localResources:

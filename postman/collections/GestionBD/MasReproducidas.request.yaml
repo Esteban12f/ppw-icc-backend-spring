@@ -1,0 +1,7 @@
+$kind: http-request
+name: MasReproducidas
+url: http://localhost:8080/api/producciones/reportes/mas-reproducidas?limite=5
+method: GET
+queryParams:
+  limite: "5"
+order: 4268753577405363
