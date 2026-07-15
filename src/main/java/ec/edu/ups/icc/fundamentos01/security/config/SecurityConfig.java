@@ -18,34 +18,22 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 /*
- * SecurityConfig contiene la configuración principal de Spring Security.
+ * Configuración principal de seguridad.
  *
- * En la práctica anterior se protegieron todos los endpoints con JWT.
- * En esta práctica se habilita la protección por roles usando @PreAuthorize.
+ * En esta práctica se agrega protección para Spring Boot Actuator:
  *
- * @EnableMethodSecurity:
- * - Habilita anotaciones de seguridad en métodos.
- * - Permite usar @PreAuthorize.
- * - Permite expresiones como hasRole('ADMIN') o hasAnyRole('ADMIN', 'MODERATOR').
+ * - /actuator/health será público para monitoreo.
+ * - /actuator/** será solo para ADMIN.
+ * - El resto de endpoints requiere autenticación JWT.
  */
 @Configuration
 @EnableMethodSecurity(prePostEnabled = true)
 public class SecurityConfig {
 
-    /*
-     * Servicio usado por Spring Security para cargar usuarios desde la base de datos.
-     */
     private final UserDetailsServiceImpl userDetailsService;
 
-    /*
-     * Componente encargado de responder 401 Unauthorized en formato JSON
-     * cuando un endpoint protegido se consume sin token o con token inválido.
-     */
     private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
 
-    /*
-     * Filtro que valida el token JWT en cada petición HTTP.
-     */
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
     public SecurityConfig(
@@ -58,25 +46,6 @@ public class SecurityConfig {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
     }
 
-    /*
-     * SecurityFilterChain define las reglas generales de seguridad.
-     *
-     * csrf.disable():
-     * - Se desactiva CSRF porque esta API trabaja con JWT y no con sesiones web.
-     *
-     * sessionCreationPolicy.STATELESS:
-     * - Indica que el servidor no guardará sesión.
-     * - Cada request debe traer el token JWT.
-     *
-     * requestMatchers("/auth/**").permitAll():
-     * - Login y registro son públicos.
-     *
-     * anyRequest().authenticated():
-     * - Todos los demás endpoints requieren token válido.
-     *
-     * La protección por rol específico se hará en el controlador
-     * usando @PreAuthorize.
-     */
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
 
@@ -89,9 +58,31 @@ public class SecurityConfig {
                         exception.authenticationEntryPoint(jwtAuthenticationEntryPoint)
                 )
                 .authorizeHttpRequests(auth -> auth
+                        /*
+                         * Endpoints públicos.
+                         */
                         .requestMatchers("/auth/**").permitAll()
                         .requestMatchers("/status/**").permitAll()
-                        .requestMatchers("/actuator/**").permitAll()
+
+                        /*
+                         * Health check público.
+                         *
+                         * Como el proyecto usa context-path /api,
+                         * la URL real será:
+                         *
+                         * http://localhost:8080/api/actuator/health
+                         */
+                        .requestMatchers("/actuator/health").permitAll()
+
+                        /*
+                         * Los demás endpoints de actuator solo serán
+                         * accesibles para usuarios con ROLE_ADMIN.
+                         */
+                        .requestMatchers("/actuator/**").hasRole("ADMIN")
+
+                        /*
+                         * Todos los demás endpoints requieren token JWT.
+                         */
                         .anyRequest().authenticated()
                 )
                 .authenticationProvider(authenticationProvider())
@@ -103,24 +94,16 @@ public class SecurityConfig {
         return http.build();
     }
 
-    /*
-     * DaoAuthenticationProvider usa:
-     * - UserDetailsServiceImpl para buscar usuarios.
-     * - PasswordEncoder para comparar contraseñas cifradas.
-     */
     @Bean
     public DaoAuthenticationProvider authenticationProvider() {
-        DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider(userDetailsService);
+        DaoAuthenticationProvider authProvider =
+                new DaoAuthenticationProvider(userDetailsService);
 
         authProvider.setPasswordEncoder(passwordEncoder());
 
         return authProvider;
     }
 
-    /*
-     * AuthenticationManager se usa en AuthService para validar
-     * email y contraseña durante el login.
-     */
     @Bean
     public AuthenticationManager authenticationManager(
             AuthenticationConfiguration authenticationConfiguration
@@ -128,11 +111,6 @@ public class SecurityConfig {
         return authenticationConfiguration.getAuthenticationManager();
     }
 
-    /*
-     * BCrypt se usa para cifrar contraseñas.
-     *
-     * Nunca se deben guardar contraseñas en texto plano.
-     */
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();

@@ -1,0 +1,34 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5433/devdb
+    username: ups
+    password: ups123
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    show-sql: true
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        format_sql: true
+
+server:
+  port: 8080
+  servlet:
+    context-path: /api
+
+logging:
+  level:
+    root: INFO
+    ec.edu.ups.icc.fundamentos01: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.springframework.security: INFO
+
+jwt:
+  secret: ${JWT_SECRET:mySecretKeyForJWT2024MustBeAtLeast256BitsLongForHS256Algorithm}
+  expiration: 1800000
+  refresh-expiration: 604800000
+  issuer: fundamentos01-api
+  header: Authorization
+  prefix: "Bearer "

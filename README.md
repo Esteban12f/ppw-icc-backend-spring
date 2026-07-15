@@ -1311,3 +1311,133 @@ Usuario A puede modificar sus productos.
 Usuario B no puede modificar productos de Usuario A.
 ADMIN puede modificar cualquier producto.
 ```
+
+---
+
+# Práctica 14: Preparación y Despliegue de API con Spring Boot
+
+En esta práctica se preparó la API de Spring Boot para un entorno más cercano a producción.  
+Se trabajó con perfiles de configuración, generación del archivo `.jar`, Actuator y ejecución mediante Docker Compose.
+
+El objetivo principal fue verificar que la aplicación pueda ejecutarse fuera del entorno normal de desarrollo y que exponga un endpoint de monitoreo para comprobar su estado.
+
+---
+
+## Configuración realizada
+
+Se agregaron configuraciones separadas para distintos ambientes:
+
+```txt
+application.yml
+application-dev.yml
+application-prod.yml
+```
+
+El archivo `application.yml` mantiene la configuración base del proyecto, mientras que `application-dev.yml` se usa para desarrollo local y `application-prod.yml` para ejecución en un entorno productivo o con Docker.
+
+También se agregó Spring Boot Actuator para exponer endpoints de monitoreo como:
+
+```http
+GET /api/actuator/health
+```
+
+Este endpoint permite verificar si la aplicación se encuentra funcionando correctamente.
+
+---
+
+## Generación y ejecución del JAR
+
+Se configuró el proyecto para generar un archivo ejecutable:
+
+```txt
+fundamentos01-api.jar
+```
+
+El JAR permite ejecutar la aplicación sin depender directamente del comando `bootRun`.
+
+Comando usado:
+
+```cmd
+java -jar build\libs\fundamentos01-api.jar --spring.profiles.active=dev
+```
+
+Con esto la aplicación se ejecutó usando el perfil de desarrollo.
+
+---
+
+## Verificación del estado de la API
+
+![Health local](assets/health-local.png)
+
+Se probó el endpoint de Actuator:
+
+```http
+GET http://localhost:8080/api/actuator/health
+```
+
+La respuesta obtenida fue:
+
+```json
+{
+  "status": "UP"
+}
+```
+
+Esto indica que la API está levantada correctamente y que el endpoint de monitoreo funciona.
+
+---
+
+## Ejecución con Docker Compose
+
+También se preparó la ejecución del proyecto usando Docker Compose.  
+Para esto se creó un archivo:
+
+```txt
+docker-compose.yml
+```
+
+El objetivo fue levantar los servicios necesarios desde Docker, incluyendo la API y PostgreSQL.
+
+Comando usado:
+
+```cmd
+docker compose up -d --build
+```
+
+Después se verificó el estado de los contenedores con:
+
+```cmd
+docker compose ps
+```
+
+![Docker Compose PS](assets/docker-compose-ps.png)
+
+Esta captura evidencia el estado de los servicios gestionados por Docker Compose.
+
+---
+
+## Archivos principales agregados o modificados
+
+| Archivo | Descripción |
+|--------|-------------|
+| `application.yml` | Configuración base del proyecto |
+| `application-dev.yml` | Configuración para desarrollo local |
+| `application-prod.yml` | Configuración para producción |
+| `build.gradle` | Configuración para generar el JAR y agregar Actuator |
+| `Dockerfile` | Archivo para construir la imagen de la API |
+| `docker-compose.yml` | Archivo para levantar API y base de datos con Docker |
+| `.dockerignore` | Archivo para excluir archivos innecesarios del build Docker |
+
+---
+
+## Resultado de la práctica
+
+Con esta práctica se logró:
+
+- Separar la configuración por perfiles.
+- Generar un JAR ejecutable de la API.
+- Ejecutar la aplicación usando el perfil `dev`.
+- Agregar Spring Boot Actuator.
+- Verificar el estado de la API con `/api/actuator/health`.
+- Preparar la ejecución mediante Docker Compose.
+- Comprobar el estado de los servicios con `docker compose ps`.

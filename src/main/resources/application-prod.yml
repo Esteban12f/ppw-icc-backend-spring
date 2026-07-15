@@ -1,0 +1,49 @@
+spring:
+  datasource:
+    url: ${DATABASE_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+      connection-timeout: 20000
+
+  jpa:
+    show-sql: false
+    hibernate:
+      ddl-auto: ${DDL_AUTO:validate}
+    properties:
+      hibernate:
+        format_sql: false
+  web:
+    error:
+      include-message: always
+      include-binding-errors: always
+      include-stacktrace: never
+
+server:
+  port: ${PORT:8080}
+  servlet:
+    context-path: /api
+logging:
+  level:
+    root: WARN
+    ec.edu.ups.icc.fundamentos01: INFO
+
+jwt:
+  secret: ${JWT_SECRET}
+  expiration: ${JWT_EXPIRATION:1800000}
+  refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800000}
+  issuer: fundamentos01-api
+  header: Authorization
+  prefix: "Bearer "
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
