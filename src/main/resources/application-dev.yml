@@ -1,22 +1,22 @@
+server:
+  port: ${PORT:8080}
+  servlet:
+    context-path: /api
+
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5433/devdb
-    username: ups
-    password: ups123
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/devdb}
+    username: ${DB_USERNAME:ups}
+    password: ${DB_PASSWORD:ups123}
     driver-class-name: org.postgresql.Driver
 
   jpa:
-    show-sql: true
+    show-sql: ${JPA_SHOW_SQL:true}
     hibernate:
-      ddl-auto: update
+      ddl-auto: ${JPA_DDL_AUTO:update}
     properties:
       hibernate:
         format_sql: true
-
-server:
-  port: 8080
-  servlet:
-    context-path: /api
 
 logging:
   level:
@@ -27,8 +27,8 @@ logging:
 
 jwt:
   secret: ${JWT_SECRET:mySecretKeyForJWT2024MustBeAtLeast256BitsLongForHS256Algorithm}
-  expiration: 1800000
-  refresh-expiration: 604800000
-  issuer: fundamentos01-api
+  expiration: ${JWT_EXPIRATION:1800000}
+  refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800000}
+  issuer: ${JWT_ISSUER:fundamentos01-api}
   header: Authorization
   prefix: "Bearer "

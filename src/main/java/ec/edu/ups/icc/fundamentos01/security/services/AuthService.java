@@ -4,7 +4,9 @@ import ec.edu.ups.icc.fundamentos01.core.exceptions.domain.BadRequestException;
 import ec.edu.ups.icc.fundamentos01.core.exceptions.domain.ConflictException;
 import ec.edu.ups.icc.fundamentos01.security.dtos.AuthResponseDto;
 import ec.edu.ups.icc.fundamentos01.security.dtos.LoginRequestDto;
+import ec.edu.ups.icc.fundamentos01.security.dtos.RefreshTokenRequestDto;
 import ec.edu.ups.icc.fundamentos01.security.dtos.RegisterRequestDto;
+import ec.edu.ups.icc.fundamentos01.security.entities.RefreshTokenEntity;
 import ec.edu.ups.icc.fundamentos01.security.entities.RoleEntity;
 import ec.edu.ups.icc.fundamentos01.security.enums.RoleName;
 import ec.edu.ups.icc.fundamentos01.security.repositories.RoleRepository;
@@ -27,70 +29,62 @@ import org.springframework.transaction.annotation.Transactional;
 /*
  * AuthService contiene la lógica de autenticación.
  *
- * Responsabilidades:
- * - Login de usuarios.
- * - Registro de usuarios.
- * - Cifrado de contraseñas.
- * - Asignación de roles.
- * - Generación de tokens JWT.
+ * En esta práctica se actualizará para:
+ * - generar access token
+ * - generar refresh token
+ * - guardar refresh token
+ * - renovar tokens
+ * - cerrar sesión
  */
 @Service
 public class AuthService {
 
-    /*
-     * AuthenticationManager valida email y contraseña.
-     */
     private final AuthenticationManager authenticationManager;
 
-    /*
-     * Repositorio de usuarios.
-     */
     private final UserRepository userRepository;
 
-    /*
-     * Repositorio de roles.
-     */
     private final RoleRepository roleRepository;
 
-    /*
-     * PasswordEncoder cifra y valida contraseñas.
-     */
     private final PasswordEncoder passwordEncoder;
 
-    /*
-     * Utilidad para generar tokens JWT.
-     */
     private final JwtUtil jwtUtil;
+
+    /*
+     * Servicio encargado de crear, validar, rotar y revocar refresh tokens.
+     */
+    private final RefreshTokenService refreshTokenService;
 
     public AuthService(
             AuthenticationManager authenticationManager,
             UserRepository userRepository,
             RoleRepository roleRepository,
             PasswordEncoder passwordEncoder,
-            JwtUtil jwtUtil
+            JwtUtil jwtUtil,
+            RefreshTokenService refreshTokenService
     ) {
         this.authenticationManager = authenticationManager;
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtUtil = jwtUtil;
+        this.refreshTokenService = refreshTokenService;
     }
 
     /*
-     * Login de usuario.
+     * Login:
      *
-     * Flujo:
-     * 1. Recibe email y contraseña.
-     * 2. AuthenticationManager valida las credenciales.
-     * 3. Si son correctas, se genera un JWT.
-     * 4. Se devuelven token y datos básicos del usuario.
-     *
-     * Si las credenciales son incorrectas,
-     * Spring Security lanza una excepción y responde 401.
+     * 1. Valida credenciales.
+     * 2. Genera access token.
+     * 3. Revoca refresh tokens anteriores.
+     * 4. Genera refresh token nuevo.
+     * 5. Devuelve ambos tokens al cliente.
      */
-    @Transactional(readOnly = true)
+    @Transactional
     public AuthResponseDto login(LoginRequestDto loginRequest) {
 
+        /*
+         * 1. Validar email y password con Spring Security.
+         */
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
                         loginRequest.getEmail(),
@@ -99,47 +93,52 @@ public class AuthService {
         );
 
         /*
-         * Guarda la autenticación en el contexto de seguridad.
+         * 2. Establecer usuario autenticado en contexto de seguridad.
          */
         SecurityContextHolder.getContext().setAuthentication(authentication);
 
         /*
-         * Genera el token JWT usando los datos del usuario autenticado.
+         * 3. Generar access token con datos del usuario.
          */
-        String jwt = jwtUtil.generateToken(authentication);
+        String accessToken = jwtUtil.generateAccessToken(authentication);
+
+        UserDetailsImpl userDetails =
+                (UserDetailsImpl) authentication.getPrincipal();
+
+        UserEntity user = findActiveUserById(userDetails.getId());
 
         /*
-         * Obtiene el usuario autenticado desde Spring Security.
+         * En esta práctica se deja una sola sesión activa por usuario.
+         * Por eso se revocan refresh tokens anteriores.
          */
-        UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
+        refreshTokenService.revokeAllByUser(user);
 
         /*
-         * Convierte authorities a nombres de roles.
+         * 4. Generar refresh token nuevo y guardarlo en base de datos.
          */
-        Set<String> roles = userDetails.getAuthorities()
-                .stream()
-                .map(item -> item.getAuthority())
-                .collect(Collectors.toSet());
+        RefreshTokenEntity refreshToken =
+                refreshTokenService.createRefreshToken(
+                        user,
+                        userDetails
+                );
 
-        return new AuthResponseDto(
-                jwt,
-                userDetails.getId(),
-                userDetails.getName(),
-                userDetails.getEmail(),
-                roles
+        /*
+         * 5. Retornar access token, refresh token y datos del usuario.
+         */
+        return buildAuthResponse(
+                accessToken,
+                refreshToken.getToken(),
+                user
         );
     }
 
     /*
-     * Registro de usuario.
+     * Registro:
      *
-     * Flujo:
-     * 1. Verifica que el email no esté registrado.
-     * 2. Crea un nuevo UserEntity.
-     * 3. Cifra la contraseña con BCrypt.
-     * 4. Asigna ROLE_USER por defecto.
-     * 5. Guarda el usuario.
-     * 6. Genera un JWT para iniciar sesión automáticamente.
+     * 1. Crea el usuario.
+     * 2. Asigna ROLE_USER.
+     * 3. Genera access token.
+     * 4. Genera refresh token.
      */
     @Transactional
     public AuthResponseDto register(RegisterRequestDto registerRequest) {
@@ -152,7 +151,7 @@ public class AuthService {
         }
 
         /*
-         * Crea la entidad de usuario.
+         * Crear usuario.
          */
         UserEntity user = new UserEntity();
 
@@ -161,16 +160,20 @@ public class AuthService {
 
         /*
          * La contraseña se cifra antes de guardarse.
-         *
-         * Nunca debe guardarse la contraseña en texto plano.
          */
-        user.setPassword(passwordEncoder.encode(registerRequest.getPassword()));
+        user.setPassword(
+                passwordEncoder.encode(registerRequest.getPassword())
+        );
 
         /*
-         * Busca el rol ROLE_USER para asignarlo por defecto.
+         * Asignar ROLE_USER por defecto.
          */
         RoleEntity userRole = roleRepository.findByName(RoleName.ROLE_USER)
-                .orElseThrow(() -> new BadRequestException("Rol por defecto no encontrado"));
+                .orElseThrow(() ->
+                        new BadRequestException(
+                                "Rol por defecto no encontrado"
+                        )
+                );
 
         Set<RoleEntity> roles = new HashSet<>();
         roles.add(userRole);
@@ -178,29 +181,138 @@ public class AuthService {
         user.setRoles(roles);
 
         /*
-         * Guarda el usuario con su rol asignado.
+         * Guardar usuario.
          */
         UserEntity savedUser = userRepository.save(user);
 
-        /*
-         * Convierte el usuario guardado a UserDetailsImpl
-         * para generar el JWT.
-         */
         UserDetailsImpl userDetails = UserDetailsImpl.build(savedUser);
 
-        String jwt = jwtUtil.generateTokenFromUserDetails(userDetails);
+        /*
+         * Generar access token.
+         */
+        String accessToken =
+                jwtUtil.generateAccessTokenFromUserDetails(userDetails);
 
-        Set<String> roleNames = userDetails.getAuthorities()
+        /*
+         * Generar refresh token y guardarlo en base de datos.
+         */
+        RefreshTokenEntity refreshToken =
+                refreshTokenService.createRefreshToken(
+                        savedUser,
+                        userDetails
+                );
+
+        /*
+         * Retornar JWT access, refresh y datos del usuario registrado.
+         */
+        return buildAuthResponse(
+                accessToken,
+                refreshToken.getToken(),
+                savedUser
+        );
+    }
+
+    /*
+     * Refresh:
+     *
+     * 1. Valida el refresh token recibido.
+     * 2. Revoca el refresh token usado.
+     * 3. Genera nuevo access token.
+     * 4. Genera nuevo refresh token.
+     *
+     * Esto se llama rotación de refresh token.
+     */
+    @Transactional
+    public AuthResponseDto refresh(RefreshTokenRequestDto request) {
+
+        /*
+         * Validar refresh token recibido desde el cliente.
+         */
+        RefreshTokenEntity currentRefreshToken =
+                refreshTokenService.validateAndGetActiveToken(
+                        request.getRefreshToken()
+                );
+
+        UserEntity user = currentRefreshToken.getUser();
+
+        /*
+         * Revocar el refresh token usado.
+         */
+        refreshTokenService.revoke(currentRefreshToken);
+
+        UserDetailsImpl userDetails = UserDetailsImpl.build(user);
+
+        /*
+         * Generar nuevo access token.
+         */
+        String newAccessToken =
+                jwtUtil.generateAccessTokenFromUserDetails(userDetails);
+
+        /*
+         * Generar nuevo refresh token.
+         */
+        RefreshTokenEntity newRefreshToken =
+                refreshTokenService.createRefreshToken(
+                        user,
+                        userDetails
+                );
+
+        return buildAuthResponse(
+                newAccessToken,
+                newRefreshToken.getToken(),
+                user
+        );
+    }
+
+    /*
+     * Logout:
+     *
+     * Revoca el refresh token enviado.
+     *
+     * Después de esto, ese refresh token ya no podrá usarse
+     * para renovar sesión.
+     */
+    @Transactional
+    public void logout(RefreshTokenRequestDto request) {
+
+        RefreshTokenEntity refreshToken =
+                refreshTokenService.validateAndGetActiveToken(
+                        request.getRefreshToken()
+                );
+
+        refreshTokenService.revoke(refreshToken);
+    }
+
+    /*
+     * Busca un usuario activo por id.
+     */
+    private UserEntity findActiveUserById(Long id) {
+        return userRepository.findByIdAndDeletedFalse(id)
+                .orElseThrow(() ->
+                        new BadRequestException("Usuario no válido")
+                );
+    }
+
+    /*
+     * Construye la respuesta de autenticación.
+     */
+    private AuthResponseDto buildAuthResponse(
+            String accessToken,
+            String refreshToken,
+            UserEntity user
+    ) {
+        Set<String> roles = user.getRoles()
                 .stream()
-                .map(item -> item.getAuthority())
+                .map(role -> role.getName().name())
                 .collect(Collectors.toSet());
 
         return new AuthResponseDto(
-                jwt,
-                savedUser.getId(),
-                savedUser.getName(),
-                savedUser.getEmail(),
-                roleNames
+                accessToken,
+                refreshToken,
+                user.getId(),
+                user.getName(),
+                user.getEmail(),
+                roles
         );
     }
 }

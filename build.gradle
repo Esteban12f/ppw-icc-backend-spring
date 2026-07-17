@@ -34,6 +34,8 @@ dependencies {
 	implementation 'io.jsonwebtoken:jjwt-api:0.12.6'
 	runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.6'
 	runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.6'
+	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.3'
+	implementation 'org.springframework.boot:spring-boot-starter-actuator'
 }
 
 tasks.named('test') {
@@ -41,5 +43,9 @@ tasks.named('test') {
 }
 
 tasks.bootJar {
-    archiveFileName.set("fundamentos01-api.jar")
+    archiveFileName.set("app.jar")
+}
+
+tasks.jar {
+    enabled = false
 }

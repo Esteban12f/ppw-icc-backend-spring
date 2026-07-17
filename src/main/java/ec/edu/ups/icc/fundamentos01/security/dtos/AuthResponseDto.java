@@ -3,33 +3,38 @@ package ec.edu.ups.icc.fundamentos01.security.dtos;
 import java.util.Set;
 
 /*
- * DTO de respuesta para login y register.
+ * DTO de respuesta para login, register y refresh.
  *
- * Este DTO se devuelve cuando el usuario inicia sesión
- * o se registra correctamente.
+ * token:
+ * - representa el access token
+ * - se usa en Authorization: Bearer <token>
  *
- * Incluye:
- * - Token JWT generado por el backend.
- * - Tipo de token, normalmente Bearer.
- * - Datos básicos del usuario autenticado.
- * - Roles asignados al usuario.
+ * refreshToken:
+ * - se usa solo en /auth/refresh
+ * - no debe usarse para consumir endpoints protegidos
  */
 public class AuthResponseDto {
 
     /*
-     * Token JWT generado por el servidor.
+     * Access token.
      *
-     * Este token debe enviarse luego en cada petición protegida
-     * dentro del header Authorization.
+     * Este token se usa para consumir endpoints protegidos.
      */
     private String token;
 
     /*
+     * Refresh token.
+     *
+     * Este token se usa para renovar el access token
+     * cuando expire.
+     */
+    private String refreshToken;
+
+    /*
      * Tipo de token.
      *
-     * Se usa "Bearer" porque es el estándar usado para enviar JWT:
-     *
-     * Authorization: Bearer token
+     * Se mantiene Bearer porque el access token se envía como:
+     * Authorization: Bearer <token>
      */
     private String type = "Bearer";
 
@@ -49,41 +54,29 @@ public class AuthResponseDto {
     private String email;
 
     /*
-     * Roles del usuario.
-     *
-     * Ejemplo:
-     * ROLE_USER
-     * ROLE_ADMIN
+     * Roles del usuario autenticado.
      */
     private Set<String> roles;
 
-    /*
-     * Constructor vacío requerido para serialización/deserialización.
-     */
     public AuthResponseDto() {
     }
 
-    /*
-     * Constructor usado para devolver una respuesta completa
-     * después del login o register.
-     */
     public AuthResponseDto(
             String token,
+            String refreshToken,
             Long userId,
             String name,
             String email,
             Set<String> roles
     ) {
         this.token = token;
+        this.refreshToken = refreshToken;
         this.userId = userId;
         this.name = name;
         this.email = email;
         this.roles = roles;
     }
 
-    /*
-     * Getters y setters.
-     */
     public String getToken() {
         return token;
     }
@@ -91,7 +84,15 @@ public class AuthResponseDto {
     public void setToken(String token) {
         this.token = token;
     }
-    
+
+    public String getRefreshToken() {
+        return refreshToken;
+    }
+
+    public void setRefreshToken(String refreshToken) {
+        this.refreshToken = refreshToken;
+    }
+
     public String getType() {
         return type;
     }

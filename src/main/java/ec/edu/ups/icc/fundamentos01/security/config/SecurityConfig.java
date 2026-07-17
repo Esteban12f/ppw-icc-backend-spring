@@ -20,20 +20,31 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 /*
  * Configuración principal de seguridad.
  *
- * En esta práctica se agrega protección para Spring Boot Actuator:
+ * En esta práctica se permite el acceso público a Swagger UI
+ * y al documento OpenAPI para que la documentación pueda visualizarse
+ * sin token.
  *
- * - /actuator/health será público para monitoreo.
- * - /actuator/** será solo para ADMIN.
- * - El resto de endpoints requiere autenticación JWT.
+ * Importante:
+ * Aunque Swagger UI sea público, los endpoints protegidos siguen
+ * requiriendo JWT cuando se intentan ejecutar.
  */
 @Configuration
 @EnableMethodSecurity(prePostEnabled = true)
 public class SecurityConfig {
 
+    /*
+     * Servicio usado por Spring Security para cargar usuarios.
+     */
     private final UserDetailsServiceImpl userDetailsService;
 
+    /*
+     * Componente que devuelve errores 401 en formato JSON.
+     */
     private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
 
+    /*
+     * Filtro que valida access tokens JWT en cada request protegida.
+     */
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
     public SecurityConfig(
@@ -46,6 +57,30 @@ public class SecurityConfig {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
     }
 
+    /*
+     * SecurityFilterChain define las reglas generales de seguridad.
+     *
+     * csrf.disable():
+     * - Se desactiva CSRF porque la API usa JWT.
+     *
+     * sessionCreationPolicy.STATELESS:
+     * - El servidor no guarda sesiones.
+     *
+     * /auth/**:
+     * - Login, registro, refresh y logout son públicos.
+     *
+     * /swagger-ui/**, /swagger-ui.html y /v3/api-docs/**:
+     * - Se permiten públicamente para poder ver la documentación.
+     *
+     * /actuator/health:
+     * - Se permite para monitoreo.
+     *
+     * /actuator/**:
+     * - Se deja para ADMIN.
+     *
+     * anyRequest().authenticated():
+     * - Todo lo demás requiere token JWT.
+     */
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
 
@@ -58,30 +93,41 @@ public class SecurityConfig {
                         exception.authenticationEntryPoint(jwtAuthenticationEntryPoint)
                 )
                 .authorizeHttpRequests(auth -> auth
-                        /*
-                         * Endpoints públicos.
-                         */
-                        .requestMatchers("/auth/**").permitAll()
-                        .requestMatchers("/status/**").permitAll()
 
                         /*
-                         * Health check público.
-                         *
-                         * Como el proyecto usa context-path /api,
-                         * la URL real será:
-                         *
-                         * http://localhost:8080/api/actuator/health
+                         * Endpoints públicos de autenticación.
                          */
+                        .requestMatchers("/auth/**").permitAll()
+
+                        /*
+                         * Endpoints públicos de Swagger y OpenAPI.
+                         *
+                         * Si el proyecto usa context-path /api,
+                         * NO se coloca /api aquí.
+                         *
+                         * Spring Security evalúa rutas internas:
+                         * /swagger-ui/**
+                         * /v3/api-docs/**
+                         */
+                        .requestMatchers(
+                                "/swagger-ui/**",
+                                "/swagger-ui.html",
+                                "/v3/api-docs/**"
+                        ).permitAll()
+
+                        /*
+                         * Endpoints públicos de estado y monitoreo.
+                         */
+                        .requestMatchers("/status/**").permitAll()
                         .requestMatchers("/actuator/health").permitAll()
 
                         /*
-                         * Los demás endpoints de actuator solo serán
-                         * accesibles para usuarios con ROLE_ADMIN.
+                         * Otros endpoints de actuator solo para ADMIN.
                          */
                         .requestMatchers("/actuator/**").hasRole("ADMIN")
 
                         /*
-                         * Todos los demás endpoints requieren token JWT.
+                         * Todo lo demás requiere autenticación.
                          */
                         .anyRequest().authenticated()
                 )
@@ -94,6 +140,11 @@ public class SecurityConfig {
         return http.build();
     }
 
+    /*
+     * DaoAuthenticationProvider usa:
+     * - UserDetailsServiceImpl para buscar usuarios.
+     * - PasswordEncoder para comparar contraseñas cifradas.
+     */
     @Bean
     public DaoAuthenticationProvider authenticationProvider() {
         DaoAuthenticationProvider authProvider =
@@ -104,6 +155,9 @@ public class SecurityConfig {
         return authProvider;
     }
 
+    /*
+     * AuthenticationManager se usa en AuthService durante el login.
+     */
     @Bean
     public AuthenticationManager authenticationManager(
             AuthenticationConfiguration authenticationConfiguration
@@ -111,6 +165,9 @@ public class SecurityConfig {
         return authenticationConfiguration.getAuthenticationManager();
     }
 
+    /*
+     * BCrypt cifra contraseñas de usuarios.
+     */
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
