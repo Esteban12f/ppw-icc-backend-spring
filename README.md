@@ -1428,16 +1428,251 @@ Esta captura evidencia el estado de los servicios gestionados por Docker Compose
 | `docker-compose.yml` | Archivo para levantar API y base de datos con Docker |
 | `.dockerignore` | Archivo para excluir archivos innecesarios del build Docker |
 
+# Práctica 15: Documentación de API con Swagger y OpenAPI
+
+## Resultados y evidencias
+
+### Swagger UI cargado
+
+Ruta utilizada:
+
+```txt
+/api/swagger-ui/index.html
+```
+
+La interfaz de Swagger mostró la lista de controladores y los endpoints agrupados por tags.
+
+![Swagger UI cargado](assets/swagger-ui.png)
+
 ---
 
-## Resultado de la práctica
+### JSON OpenAPI
 
-Con esta práctica se logró:
+Ruta utilizada:
 
-- Separar la configuración por perfiles.
-- Generar un JAR ejecutable de la API.
-- Ejecutar la aplicación usando el perfil `dev`.
-- Agregar Spring Boot Actuator.
-- Verificar el estado de la API con `/api/actuator/health`.
-- Preparar la ejecución mediante Docker Compose.
-- Comprobar el estado de los servicios con `docker compose ps`.
+```txt
+/api/v3/api-docs
+```
+
+La respuesta permitió evidenciar las secciones principales de la especificación:
+
+```txt
+openapi
+paths
+components
+```
+
+![JSON OpenAPI](assets/openapi-json.png)
+
+---
+
+### AuthController documentado
+
+En Swagger se visualizaron los endpoints:
+
+```txt
+POST /api/auth/register
+POST /api/auth/login
+```
+
+También se mostraron las descripciones, cuerpos de petición y posibles respuestas HTTP.
+
+![AuthController documentado](assets/auth-controller.png)
+
+---
+
+### Botón Authorize
+
+Swagger mostró el botón `Authorize` con el esquema de seguridad:
+
+```txt
+bearerAuth
+JWT
+```
+
+Este botón permite ingresar un access token para consumir endpoints protegidos.
+
+![Botón Authorize](assets/authorize-button.png)
+
+---
+
+### Endpoint protegido sin token
+
+Endpoint probado:
+
+```txt
+GET /api/products/page?page=0&size=5
+```
+
+Al ejecutar el endpoint sin configurar un token JWT, la respuesta fue:
+
+```txt
+401 Unauthorized
+```
+
+![Endpoint protegido sin token](assets/protected-without-token.png)
+
+---
+
+### Endpoint protegido con token
+
+Endpoint probado:
+
+```txt
+GET /api/products/page?page=0&size=5
+```
+
+Después de configurar un access token válido mediante el botón `Authorize`, la respuesta fue:
+
+```txt
+200 OK
+```
+
+![Endpoint protegido con token](assets/protected-with-token.png)
+
+---
+
+### Endpoint ADMIN con usuario normal
+
+Endpoint probado:
+
+```txt
+GET /api/products
+```
+
+Se utilizó un token perteneciente a un usuario con:
+
+```txt
+ROLE_USER
+```
+
+La API respondió:
+
+```txt
+403 Forbidden
+```
+
+Esto demuestra que el usuario estaba autenticado, pero no tenía el rol requerido.
+
+![Endpoint ADMIN con ROLE_USER](assets/admin-user-forbidden.png)
+
+---
+
+### Endpoint ADMIN con usuario administrador
+
+Endpoint probado:
+
+```txt
+GET /api/products/{id}
+```
+
+Se utilizó un token perteneciente a un usuario con:
+
+```txt
+ROLE_ADMIN
+```
+
+La API respondió:
+
+```txt
+200 OK
+```
+
+Esto demuestra que el endpoint está correctamente protegido por roles.
+
+![Endpoint ADMIN con ROLE_ADMIN](assets/admin-ok.png)
+
+---
+
+## Explicación breve
+
+### ¿Cuál es la diferencia entre Swagger UI y OpenAPI?
+
+OpenAPI es la especificación que describe la estructura de la API en formato JSON o YAML.
+
+Contiene información sobre:
+
+```txt
+rutas
+métodos HTTP
+parámetros
+cuerpos de petición
+respuestas
+schemas
+seguridad
+```
+
+Swagger UI es la interfaz gráfica que interpreta esa especificación y permite visualizar y probar los endpoints desde el navegador.
+
+En este proyecto:
+
+```txt
+/api/v3/api-docs
+```
+
+devuelve la especificación OpenAPI.
+
+Mientras que:
+
+```txt
+/api/swagger-ui/index.html
+```
+
+muestra la interfaz Swagger UI.
+
+---
+
+### ¿Por qué Swagger puede ser público pero los endpoints seguir protegidos?
+
+Swagger UI y el documento OpenAPI pueden configurarse como públicos para permitir que los desarrolladores consulten la documentación sin autenticarse.
+
+Sin embargo, los endpoints reales siguen siendo procesados por Spring Security.
+
+Por esta razón, Swagger puede abrirse sin token, pero al ejecutar un endpoint protegido la API puede responder:
+
+```txt
+401 Unauthorized
+```
+
+si el usuario no está autenticado.
+
+También puede responder:
+
+```txt
+403 Forbidden
+```
+
+si el usuario está autenticado, pero no tiene el rol requerido.
+
+---
+
+### ¿Cómo se configura Swagger para enviar un JWT en Authorization: Bearer?
+
+Se configura un esquema de seguridad Bearer JWT en OpenAPI:
+
+```java
+SecurityScheme bearerScheme = new SecurityScheme()
+        .type(SecurityScheme.Type.HTTP)
+        .scheme("bearer")
+        .bearerFormat("JWT");
+```
+
+El esquema se registra con el nombre:
+
+```txt
+bearerAuth
+```
+
+Luego, los controladores protegidos utilizan:
+
+```java
+@SecurityRequirement(name = "bearerAuth")
+```
+
+Con esta configuración aparece el botón `Authorize` en Swagger UI.
+
+Después de ingresar el token, Swagger envía automáticamente el encabezado:
+
+```http
+Authorization: Bearer TOKEN_JWT
+```
