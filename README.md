@@ -1676,3 +1676,482 @@ Después de ingresar el token, Swagger envía automáticamente el encabezado:
 ```http
 Authorization: Bearer TOKEN_JWT
 ```
+---
+
+# Práctica 16: Despliegue portable de Spring Boot con Docker y Nginx en Ubuntu Server
+
+## Objetivo
+
+El objetivo de esta práctica fue preparar y desplegar una API Spring Boot mediante Docker en un Ubuntu Server, utilizando variables de entorno para separar la configuración del código fuente.
+
+La solución fue construida sin Docker Compose. Cada imagen, red y contenedor se administró mediante comandos Docker.
+
+También se configuró Nginx como proxy inverso para que sea el único servicio publicado hacia la máquina anfitriona.
+
+La arquitectura final implementada fue:
+
+```text
+Máquina anfitriona Windows
+        │
+        │ HTTP
+        ▼
+Ubuntu Server: 192.168.56.101
+        │
+        │ Puerto 80
+        ▼
+Nginx
+        │
+        │ Red Docker app-network
+        ▼
+Spring Boot: fundamentos-api:8080
+        │
+        │ jdbc:postgresql://postgres:5432/devdb
+        ▼
+PostgreSQL en Docker
+```
+
+---
+
+## Configuración utilizada
+
+La aplicación se ejecutó con el profile:
+
+```text
+prod
+```
+
+Las variables específicas del entorno se almacenaron en:
+
+```text
+.env.ubuntu
+```
+
+La configuración principal utilizada fue:
+
+```dotenv
+SPRING_PROFILES_ACTIVE=prod
+PORT=8080
+
+DATABASE_URL=jdbc:postgresql://postgres:5432/devdb
+DB_USERNAME=ups
+DB_PASSWORD=ups123
+
+JPA_DDL_AUTO=update
+JPA_SHOW_SQL=false
+
+JWT_EXPIRATION=1800000
+JWT_REFRESH_EXPIRATION=604800000
+JWT_ISSUER=fundamentos01-api
+
+DB_POOL_MAX_SIZE=10
+DB_POOL_MIN_IDLE=2
+DB_CONNECTION_TIMEOUT=20000
+
+ROOT_LOG_LEVEL=WARN
+APP_LOG_LEVEL=INFO
+```
+
+El archivo `.env.ubuntu` no fue incluido en la imagen Docker ni enviado al repositorio Git.
+
+---
+
+## Red Docker
+
+Se creó una red privada llamada:
+
+```text
+app-network
+```
+
+Comando utilizado:
+
+```bash
+docker network create app-network
+```
+
+Los siguientes contenedores fueron conectados a esta red:
+
+```text
+nginx
+fundamentos-api
+postgres
+```
+
+Esto permite que los contenedores se comuniquen mediante sus nombres internos.
+
+---
+
+## Imágenes utilizadas
+
+La imagen de la API fue construida mediante un Dockerfile multi-stage:
+
+```text
+fundamentos-api:1.0
+```
+
+También se utilizaron las imágenes:
+
+```text
+nginx:alpine
+postgres:17-alpine
+```
+
+El Dockerfile utiliza una etapa de compilación con JDK 21 y una etapa de ejecución con JRE 21.
+
+---
+
+# Resultados y evidencias
+
+## 1. Contenedores en ejecución en Ubuntu Server
+
+Para comprobar los contenedores activos se ejecutó:
+
+```bash
+docker ps
+```
+
+La salida evidenció los siguientes servicios:
+
+```text
+nginx
+fundamentos-api
+postgres
+```
+
+Nginx se encuentra publicado en el puerto `80`.
+
+Spring Boot permanece disponible únicamente dentro de la red Docker en el puerto `8080`.
+
+PostgreSQL también permanece disponible únicamente dentro de `app-network` en el puerto interno `5432`.
+
+![Contenedores Docker en ejecución](assets/docker-ps.png)
+
+---
+
+## 2. Health check desde Ubuntu Server
+
+Desde Ubuntu Server se comprobó el funcionamiento de la API a través de Nginx mediante:
+
+```bash
+curl http://localhost/api/actuator/health
+```
+
+La respuesta obtenida fue:
+
+```json
+{
+  "status": "UP"
+}
+```
+
+Esto confirma que Nginx puede comunicarse correctamente con el contenedor `fundamentos-api`.
+
+![Health check desde Ubuntu Server](assets/health-ubuntu.png)
+
+---
+
+## 3. Health check desde la máquina anfitriona
+
+Desde Windows PowerShell se utilizó la IP Host-Only real del Ubuntu Server:
+
+```powershell
+curl.exe http://192.168.56.101/api/actuator/health
+```
+
+La respuesta obtenida fue:
+
+```json
+{
+  "status": "UP"
+}
+```
+
+Esto comprueba el flujo completo:
+
+```text
+Windows
+  → Ubuntu Server
+  → Nginx
+  → Spring Boot
+```
+
+![Health check desde Windows](assets/health-host.png)
+
+---
+
+## 4. PostgreSQL mediante la alternativa fallback
+
+Inicialmente se consideró utilizar PostgreSQL instalado en la máquina anfitriona.
+
+Debido a los problemas de conexión, puertos y autenticación, se utilizó la alternativa fallback permitida por la práctica: ejecutar PostgreSQL en un contenedor independiente dentro de Ubuntu Server.
+
+El volumen persistente fue creado con:
+
+```bash
+docker volume create postgres-data
+```
+
+El contenedor PostgreSQL fue creado con:
+
+```bash
+docker run -d \
+  --name postgres \
+  --network app-network \
+  -e POSTGRES_DB=devdb \
+  -e POSTGRES_USER=ups \
+  -e POSTGRES_PASSWORD=ups123 \
+  -v postgres-data:/var/lib/postgresql/data \
+  postgres:17-alpine
+```
+
+La URL utilizada por Spring Boot fue:
+
+```text
+jdbc:postgresql://postgres:5432/devdb
+```
+
+El nombre `postgres` funciona como hostname gracias al DNS interno de la red Docker `app-network`.
+
+La conexión fue verificada con:
+
+```bash
+docker run --rm \
+  --network app-network \
+  -e PGPASSWORD=ups123 \
+  postgres:17-alpine \
+  psql \
+    -h postgres \
+    -p 5432 \
+    -U ups \
+    -d devdb \
+    -c 'SELECT current_database(), current_user;'
+```
+
+La respuesta obtenida fue:
+
+```text
+ current_database | current_user
+------------------+-------------
+ devdb            | ups
+```
+
+También se verificaron las tablas con:
+
+```bash
+docker exec postgres \
+  psql -U ups -d devdb \
+  -c '\dt'
+```
+
+![PostgreSQL fallback en Docker](assets/postgresql-fallback.png)
+
+---
+
+## 5. Consumo del login desde Postman
+
+Desde la máquina anfitriona se probó el endpoint de autenticación usando Postman.
+
+Método utilizado:
+
+```text
+POST
+```
+
+URL:
+
+```text
+http://192.168.56.101/api/auth/login
+```
+
+Header:
+
+```http
+Content-Type: application/json
+```
+
+Body enviado:
+
+```json
+{
+  "email": "usera@ups.edu.ec",
+  "password": "Password123"
+}
+```
+
+La API respondió con:
+
+```text
+200 OK
+```
+
+La respuesta incluyó:
+
+```json
+{
+  "token": "ACCESS_TOKEN",
+  "refreshToken": "REFRESH_TOKEN",
+  "type": "Bearer",
+  "userId": 1,
+  "email": "usera@ups.edu.ec",
+  "roles": [
+    "ROLE_USER"
+  ]
+}
+```
+
+Esto demuestra que el flujo externo funciona correctamente:
+
+```text
+Postman
+  → 192.168.56.101:80
+  → Nginx
+  → fundamentos-api:8080
+  → PostgreSQL
+```
+
+![Login desde Postman](assets/login-postman.png)
+
+---
+
+# Configuración de Nginx
+
+Nginx fue configurado como proxy inverso mediante el archivo:
+
+```text
+nginx/default.conf
+```
+
+Configuración utilizada:
+
+```nginx
+upstream spring_backend {
+    server fundamentos-api:8080;
+    keepalive 16;
+}
+
+server {
+    listen 80;
+    server_name _;
+
+    client_max_body_size 10M;
+
+    location = / {
+        default_type text/plain;
+        return 200 "Nginx activo\n";
+    }
+
+    location = /api/actuator/health {
+        proxy_pass http://spring_backend;
+        access_log off;
+
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location /api/ {
+        proxy_pass http://spring_backend;
+        proxy_http_version 1.1;
+
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        proxy_connect_timeout 5s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 60s;
+    }
+}
+```
+
+Nginx fue ejecutado mediante:
+
+```bash
+docker run -d \
+  --name nginx \
+  --network app-network \
+  -p 80:80 \
+  -v "$(pwd)/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro" \
+  nginx:alpine
+```
+
+La configuración fue validada mediante:
+
+```bash
+docker exec nginx nginx -t
+```
+
+---
+
+# Ejecución final de Spring Boot
+
+Después de validar temporalmente la API con el puerto `8080`, el contenedor fue recreado sin publicar directamente ese puerto:
+
+```bash
+docker rm -f fundamentos-api
+```
+
+```bash
+docker run -d \
+  --name fundamentos-api \
+  --network app-network \
+  --env-file .env.ubuntu \
+  fundamentos-api:1.0
+```
+
+De esta forma, Spring Boot solamente puede ser accedido desde otros contenedores pertenecientes a `app-network`.
+
+El único servicio publicado hacia la máquina anfitriona es Nginx.
+
+---
+
+# Resultado final
+
+La configuración final quedó de la siguiente manera:
+
+```text
+Nginx
+  Imagen: nginx:alpine
+  Puerto interno: 80
+  Puerto publicado: 80
+  Red: app-network
+
+Spring Boot
+  Imagen: fundamentos-api:1.0
+  Puerto interno: 8080
+  Puerto publicado: ninguno
+  Red: app-network
+
+PostgreSQL
+  Imagen: postgres:17-alpine
+  Puerto interno: 5432
+  Puerto publicado: ninguno
+  Red: app-network
+  Volumen: postgres-data
+```
+
+La URL pública de la API dentro de la red Host-Only es:
+
+```text
+http://192.168.56.101/api
+```
+
+El health check se encuentra disponible en:
+
+```text
+http://192.168.56.101/api/actuator/health
+```
+
+Swagger puede consultarse mediante:
+
+```text
+http://192.168.56.101/api/swagger-ui/index.html
+```
+
+El login se encuentra disponible en:
+
+```text
+http://192.168.56.101/api/auth/login
+```
